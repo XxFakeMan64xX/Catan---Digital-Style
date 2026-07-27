@@ -10,32 +10,67 @@ running = True
 dragging = False
 dt = 0
 gameSize = 40
-numberOfRings = 3
+numberOfRings = 2
 
 gamePos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 gameScale = 1.0
 
+class TileType:
+    """
+    Defines a type of hex tile on the board.
+
+    Attributes:
+        name:        Human-readable identifier (e.g. "wheat").
+        color:       RGB tuple used when rendering the tile.
+        harvestable: Whether players can collect resources from this tile.
+        spawn_weight: Relative probability of appearing during random board
+                     generation. 0 means the type is never spawned randomly
+                     (e.g. desert/sea are placed manually).
+    """
+
+    # Registry of every TileType created, keyed by name. Makes it easy to
+    # look up types by name and iterate over all of them.
+    registry = {}
+
+    def __init__(self, name, color, harvestable=True, spawn_weight=1.0):
+        self.name = name
+        self.color = color
+        self.harvestable = harvestable
+        self.spawn_weight = spawn_weight
+        TileType.registry[name] = self
+
+    def __repr__(self):
+        return f"TileType({self.name!r})"
+
+    @classmethod
+    def spawnable(cls):
+        """Return all tile types eligible for random placement."""
+        return [t for t in cls.registry.values() if t.spawn_weight > 0]
+
+    @classmethod
+    def random(cls, rng=ran):
+        """Pick a random spawnable tile type, weighted by spawn_weight."""
+        pool = cls.spawnable()
+        weights = [t.spawn_weight for t in pool]
+        return rng.choices(pool, weights=weights, k=1)[0]
+
+
+# Tile type definitions ------------------------------------------------------
+DESERT = TileType("desert",    (219, 196, 138), harvestable=False, spawn_weight=0)
+SEA    = TileType("sea",       (42, 126, 235),  harvestable=False, spawn_weight=0)
+SHEEP  = TileType("sheep",     (126, 237, 71))
+ORE    = TileType("ore",       (87, 71, 196))
+WHEAT  = TileType("wheat",     (247, 220, 10))
+WOOD   = TileType("wood",      (4, 110, 24))
+BRICK  = TileType("brick",     (168, 66, 22))
+GOLD   = TileType("gold_mine", (212, 176, 56),  spawn_weight=0.25)
+
+
 def newTiles(rings):
-
-    # desert (219, 196, 138)
-    # sheep (126, 237, 71)
-    # ore (87, 71, 196)
-    # wheat (247, 220, 10)
-    # wood (4, 110, 24)
-    # brick (168, 66, 22)
-    # gold mine (212, 176, 56)
-    # sea (42, 126, 235)
-
-    colors = [(126, 237, 71), (87, 71, 196), (247, 220, 10), (4, 110, 24), (168, 66, 22), (212, 176, 56), (42, 126, 235)]
-    
     tileList = []
-    
-    for tile in hex_grid((0, 0), rings):
-        if tile != (0, 0):
-            tileList.append((tile, ran.choice(colors)))
-        else:
-            tileList.append((tile, (219, 196, 138)))
-    
+    for coord in hex_grid((0, 0), rings):
+        tile_type = DESERT if coord == (0, 0) else TileType.random()
+        tileList.append((coord, tile_type))
     return tileList
 
 def drawHexagon(coord, color):
@@ -130,8 +165,8 @@ while running:
     screen.fill((42, 126, 235))
 
 
-    for i in tileList:
-        drawHexagon(i[0], i[1])
+    for coord, tile in tileList:
+        drawHexagon(coord, tile.color)
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_w] or keys[pygame.K_UP]:
