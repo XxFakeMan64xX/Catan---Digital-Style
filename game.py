@@ -10,7 +10,7 @@ running = True
 dragging = False
 dt = 0
 gameSize = 40
-numberOfRings = -1
+numberOfRings = 3
 
 gamePos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 gameScale = 1.0
@@ -143,9 +143,9 @@ while running:
     if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
         gamePos.x -= speed * dt
     if keys[pygame.K_RSHIFT] or keys[pygame.K_LSHIFT]:
-        speed = 800
+        speed = 900
     else:
-        speed = 400
+        speed = 450
     
     # flip() the display to put your work on screen
     pygame.display.flip()

@@ -1,0 +1,1 @@
+Basic (for now) bit of python code that may in the future become a catan esque game. currently doesnt do much other then show colored regular hexagons that you can randomize at will, as well as move the camera to your liking.
