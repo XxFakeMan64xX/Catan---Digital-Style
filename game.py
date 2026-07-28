@@ -6,6 +6,7 @@ import random as ran
 pygame.init()
 screen = pygame.display.set_mode((1280, 720))
 clock = pygame.time.Clock()
+
 running = True
 dragging = False
 dt = 0
@@ -38,20 +39,31 @@ def newTiles(rings):
     
     return tileList
 
-def drawHexagon(coord, color, alpha=255):
+def drawHexagon(coord, color, alpha=None):
     shapeSize = gameSize * gameScale
-    alphaSurface = pygame.Surface((shapeSize * 2, shapeSize * 2), pygame.SRCALPHA)
     x = coord[0] * shapeSize * 3/2
     y = shapeSize * 3**(1/2)/2 * coord[1]
-    pygame.draw.polygon(alphaSurface, color + (alpha,), [
-        (shapeSize*2, shapeSize), 
-        (3/2 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
-        (0.5 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
-        (0, shapeSize), 
-        (0.5 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize), 
-        (3/2 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize)
-    ])
-    screen.blit(alphaSurface, (gamePos.x + x - shapeSize, gamePos.y + y - shapeSize))
+    
+    if alpha is None:
+        pygame.draw.polygon(screen, color, [
+            (shapeSize + x, 0 + y) + gamePos, 
+            (0.5 * shapeSize + x, 3**(1/2)/2 * shapeSize + y) + gamePos, 
+            (-0.5 * shapeSize + x, 3**(1/2)/2 * shapeSize + y) + gamePos, 
+            (-1 * shapeSize + x, 0 + y) + gamePos, 
+            (-0.5 * shapeSize + x, -3**(1/2)/2 * shapeSize + y) + gamePos, 
+            (0.5 * shapeSize + x, -3**(1/2)/2 * shapeSize + y) + gamePos
+        ])
+    else:
+        alphaSurface = pygame.Surface((shapeSize * 2, shapeSize * 2), pygame.SRCALPHA)
+        pygame.draw.polygon(alphaSurface, color + (alpha,), [
+            (shapeSize*2, shapeSize), 
+            (3/2 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
+            (0.5 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
+            (0, shapeSize), 
+            (0.5 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize), 
+            (3/2 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize)
+        ])
+        screen.blit(alphaSurface, (gamePos.x + x - shapeSize, gamePos.y + y - shapeSize))
 
 def hex_grid(center, num_rings):
     """Return all tile coords from the center out to num_rings."""
@@ -131,9 +143,13 @@ while running:
             if event.y > 0:
                 # Zoom in
                 gameScale *= 1.15
+                if gameScale > 15:
+                    gameScale = 15
             else:
                 # Zoom out
                 gameScale /= 1.15
+                if gameScale < 0.2:
+                    gameScale = 0.2
             
             gamePos = mousePos - worldPos * gameScale
 
@@ -163,9 +179,26 @@ while running:
     # fill the screen with a color to wipe away anything from last frame
     screen.fill((42, 126, 235))
 
+    # Calculate screen bounds in world coordinates
+    screen_width, screen_height = screen.get_size()
+    shapeSize = gameSize * gameScale
+    buffer = shapeSize  # Extra margin to prevent popping
+    
+    # Convert screen corners to world coordinates
+    min_x = -gamePos.x - buffer
+    max_x = -gamePos.x + screen_width + buffer
+    min_y = -gamePos.y - buffer  
+    max_y = -gamePos.y + screen_height + buffer
 
     for i in tileList:
-        drawHexagon(i[0], i[1])
+        coord = i[0]
+        # Calculate hex position in world coordinates
+        hex_x = coord[0] * shapeSize * 3/2
+        hex_y = coord[1] * shapeSize * 3**(1/2)/2
+        
+        # Check if hex is within screen bounds
+        if (min_x <= hex_x <= max_x and min_y <= hex_y <= max_y):
+            drawHexagon(i[0], i[1])
     
     hex = hexRound(pixelToFractionalHex(pygame.mouse.get_pos(), 40 * gameScale))
     drawHexagon(hex, (255, 255, 255), 85)
