@@ -10,7 +10,7 @@ running = True
 dragging = False
 dt = 0
 gameSize = 40
-numberOfRings = 3
+numberOfRings = 2
 
 gamePos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 gameScale = 1.0
@@ -38,18 +38,27 @@ def newTiles(rings):
     
     return tileList
 
-def drawHexagon(coord, color):
+def drawHexagon(coord, color, alpha=255):
     shapeSize = gameSize * gameScale
+    alphaSurface = pygame.Surface((shapeSize * 2, shapeSize * 2), pygame.SRCALPHA)
     x = coord[0] * shapeSize * 3/2
-    y = coord[1] * shapeSize * 3**(1/2)/2
-    pygame.draw.polygon(screen, color, [
-        (shapeSize + x, 0 + y) + gamePos, 
-        (0.5 * shapeSize + x, 3**(1/2)/2 * shapeSize + y) + gamePos, 
-        (-0.5 * shapeSize + x, 3**(1/2)/2 * shapeSize + y) + gamePos, 
-        (-1 * shapeSize + x, 0 + y) + gamePos, 
-        (-0.5 * shapeSize + x, -3**(1/2)/2 * shapeSize + y) + gamePos, 
-        (0.5 * shapeSize + x, -3**(1/2)/2 * shapeSize + y) + gamePos
+    y = shapeSize * 3**(1/2)/2 * coord[1]
+    pygame.draw.polygon(alphaSurface, color + (alpha,), [
+        (shapeSize*2, shapeSize), 
+        (3/2 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
+        (0.5 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
+        (0, shapeSize), 
+        (0.5 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize), 
+        (3/2 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize)
     ])
+    screen.blit(alphaSurface, (gamePos.x + x - shapeSize, gamePos.y + y - shapeSize))
+
+def hex_grid(center, num_rings):
+    """Return all tile coords from the center out to num_rings."""
+    tiles = [center]
+    for r in range(1, num_rings + 1):
+        tiles.extend(hex_ring(center, r))
+    return tiles
 
 def hex_ring(center, radius):
     # The 6 directions between adjacent hexes
@@ -74,12 +83,37 @@ def hex_ring(center, radius):
             y += dy
     return results
 
-def hex_grid(center, num_rings):
-    """Return all tile coords from the center out to num_rings."""
-    tiles = [center]
-    for r in range(1, num_rings + 1):
-        tiles.extend(hex_ring(center, r))
-    return tiles
+
+def pixelToFractionalHex(coord, size):
+    x, y = coord[0] - gamePos[0], coord[1] - gamePos[1]
+    q = (2/3 * x) / size
+    r = (-1/3 * x + (3)**(1/2)/3 * y) / size
+    return (q, r)
+
+def hexRound(coords):
+    fracQ, fracR = coords
+    # Calculate 3D cube coordinates
+    fracS = -fracQ - fracR
+
+    # Round each coordinate to the nearest integer
+    q = round(fracQ)
+    r = round(fracR)
+    s = round(fracS)
+
+    # Measure the difference between float and rounded integer
+    q_diff = abs(q - fracQ)
+    r_diff = abs(r - fracR)
+    s_diff = abs(s - fracS)
+
+    # Reset the coordinate with the largest difference to satisfy q + r + s = 0
+    if (q_diff > r_diff and q_diff > s_diff):
+        q = -r - s
+    elif (r_diff > s_diff):
+        r = -q - s
+    else:
+        s = -q - r
+
+    return q, 2 * r + q
 
 tileList = newTiles(numberOfRings)
 while running:
@@ -132,8 +166,13 @@ while running:
 
     for i in tileList:
         drawHexagon(i[0], i[1])
+    
+    hex = hexRound(pixelToFractionalHex(pygame.mouse.get_pos(), 40 * gameScale))
+    drawHexagon(hex, (255, 255, 255), 85)
 
     keys = pygame.key.get_pressed()
+    if keys[pygame.K_ESCAPE]:
+        running = False
     if keys[pygame.K_w] or keys[pygame.K_UP]:
         gamePos.y += speed * dt
     if keys[pygame.K_s] or keys[pygame.K_DOWN]:
@@ -146,7 +185,6 @@ while running:
         speed = 900
     else:
         speed = 450
-    
     # flip() the display to put your work on screen
     pygame.display.flip()
 
