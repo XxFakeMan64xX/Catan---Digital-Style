@@ -4,91 +4,120 @@ import random as ran
 
 # pygame setup
 pygame.init()
-screen = pygame.display.set_mode((1280, 720))
+screenWidth, screenHeight = pygame.display.Info().current_w, pygame.display.Info().current_h
+screen = pygame.display.set_mode((screenWidth, screenHeight), pygame.FULLSCREEN)
 clock = pygame.time.Clock()
 
 running = True
 dragging = False
+fullscreen = True
 dt = 0
-gameSize = 40
-numberOfRings = 2
-
+hexSize = 40
+defaultRings = 2
+numberOfRings = defaultRings
+zoomFactor = 1.15
+minZoom, maxZoom = 0.05, 15
 gamePos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
 gameScale = 1.0
+panSpeed = 450
+hexWidthRatio, hexHeightRatio = 3/2, 3**(1/2)/2
+fpsLimit = 60
+
+selectorColor, selectorAlpha = (255, 255, 255), 85
+numberTileColor = (212, 205, 142)
+desert = (181, 174, 112)
+sheep = (131,187,8)
+ore = (141,129,182)
+wheat = (251, 194, 51)
+wood = (8, 100, 23)
+brick = (255, 106, 42)
+goldMine = (180, 144, 14)
+sea = (17, 99, 176)
+colorList = [sheep, ore, wheat, wood, brick, goldMine]
+
+textSize = 20
+numberList = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12]
+numberSize = pygame.font.Font('assets/fonts/MinionPro-BoldCn.otf', int(textSize*gameScale))
+
 
 def newTiles(rings):
-
-    # desert (219, 196, 138)
-    # sheep (126, 237, 71)
-    # ore (87, 71, 196)
-    # wheat (247, 220, 10)
-    # wood (4, 110, 24)
-    # brick (168, 66, 22)
-    # gold mine (212, 176, 56)
-    # sea (42, 126, 235)
-
-    colors = [(126, 237, 71), (87, 71, 196), (247, 220, 10), (4, 110, 24), (168, 66, 22), (212, 176, 56), (42, 126, 235)]
     
     tileList = []
     
-    for tile in hex_grid((0, 0), rings):
+    for tile in hexGrid((0, 0), rings):
         if tile != (0, 0):
-            tileList.append((tile, ran.choice(colors)))
+            tileList.append((tile, ran.choice(colorList), ran.choice(numberList)))
         else:
-            tileList.append((tile, (219, 196, 138)))
+            tileList.append((tile, desert, None))
     
     return tileList
 
 def drawHexagon(coord, color, alpha=None):
-    shapeSize = gameSize * gameScale
-    x = coord[0] * shapeSize * 3/2
-    y = shapeSize * 3**(1/2)/2 * coord[1]
+    shapeSize = hexSize * gameScale
+    alphaSurfaceSize = shapeSize * 2
+    x = coord[0] * shapeSize * hexWidthRatio
+    y = shapeSize * hexHeightRatio * coord[1]
     
     if alpha is None:
         pygame.draw.polygon(screen, color, [
             (shapeSize + x, 0 + y) + gamePos, 
-            (0.5 * shapeSize + x, 3**(1/2)/2 * shapeSize + y) + gamePos, 
-            (-0.5 * shapeSize + x, 3**(1/2)/2 * shapeSize + y) + gamePos, 
+            (0.5 * shapeSize + x, hexHeightRatio * shapeSize + y) + gamePos, 
+            (-0.5 * shapeSize + x, hexHeightRatio * shapeSize + y) + gamePos, 
             (-1 * shapeSize + x, 0 + y) + gamePos, 
-            (-0.5 * shapeSize + x, -3**(1/2)/2 * shapeSize + y) + gamePos, 
-            (0.5 * shapeSize + x, -3**(1/2)/2 * shapeSize + y) + gamePos
+            (-0.5 * shapeSize + x, -hexHeightRatio * shapeSize + y) + gamePos, 
+            (0.5 * shapeSize + x, -hexHeightRatio * shapeSize + y) + gamePos
         ])
     else:
-        alphaSurface = pygame.Surface((shapeSize * 2, shapeSize * 2), pygame.SRCALPHA)
+        alphaSurface = pygame.Surface((alphaSurfaceSize, alphaSurfaceSize), pygame.SRCALPHA)
         pygame.draw.polygon(alphaSurface, color + (alpha,), [
-            (shapeSize*2, shapeSize), 
-            (3/2 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
-            (0.5 * shapeSize, 3**(1/2)/2 * shapeSize + shapeSize), 
-            (0, shapeSize), 
-            (0.5 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize), 
-            (3/2 * shapeSize, -3**(1/2)/2 * shapeSize + shapeSize)
+            (alphaSurfaceSize, alphaSurfaceSize/2), 
+            (hexWidthRatio * shapeSize, hexHeightRatio * shapeSize + alphaSurfaceSize/2), 
+            (0.5 * shapeSize, hexHeightRatio * shapeSize + alphaSurfaceSize/2), 
+            (0, alphaSurfaceSize/2), 
+            (0.5 * shapeSize, -hexHeightRatio * shapeSize + shapeSize), 
+            (hexWidthRatio * shapeSize, -hexHeightRatio * shapeSize + shapeSize)
         ])
         screen.blit(alphaSurface, (gamePos.x + x - shapeSize, gamePos.y + y - shapeSize))
 
-def hex_grid(center, num_rings):
-    """Return all tile coords from the center out to num_rings."""
+def drawNumberToken(coord, number):
+    shapeSize = hexSize * gameScale
+    x = coord[0] * shapeSize * hexWidthRatio
+    y = shapeSize * hexHeightRatio * coord[1]
+    pygame.draw.circle(screen, numberTileColor, (gamePos.x + x, gamePos.y + y), shapeSize/3)
+
+    if number in [6, 8]:
+        tokenNumber = numberSize.render(str(number), True, "red")
+    elif 2 <= number <= 12 and number != 7:
+        tokenNumber = numberSize.render(str(number), True, "black")
+    else:
+        tokenNumber = numberSize.render(str(number), True, "blue")
+    numberRect = tokenNumber.get_rect(center=(gamePos.x + x, gamePos.y + y))
+    screen.blit(tokenNumber, numberRect)
+
+def hexGrid(center, numRings):
+    """Return all tile coords from the center out to numRings."""
     tiles = [center]
-    for r in range(1, num_rings + 1):
-        tiles.extend(hex_ring(center, r))
+    for r in range(1, numRings + 1):
+        tiles.extend(hexRing(center, r))
     return tiles
 
-def hex_ring(center, radius):
+def hexRing(center, radius):
     # The 6 directions between adjacent hexes
-    DIRECTIONS = [(1, 1), (1, -1), (0, -2), (-1, -1), (-1, 1), (0, 2)]
+    HEX_DIRECTIONS = [(1, 1), (1, -1), (0, -2), (-1, -1), (-1, 1), (0, 2)]
     #Return all tile coords in the ring at the given radius from center
     if radius == 0:
-        return
+        return []
     
     cx, cy = center
     # Start at the corner of the ring reached by going DIRECTIONS[0] * radius steps
-    x = cx + DIRECTIONS[0][0] * radius
-    y = cy + DIRECTIONS[0][1] * radius
+    x = cx + HEX_DIRECTIONS[0][0] * radius
+    y = cy + HEX_DIRECTIONS[0][1] * radius
 
     # Walk order starts two directions ahead of the start direction
-    walk_dirs = DIRECTIONS[2:] + DIRECTIONS[:2]
+    walkDirs = HEX_DIRECTIONS[2:] + HEX_DIRECTIONS[:2]
 
     results = []
-    for dx, dy in walk_dirs:
+    for dx, dy in walkDirs:
         for _ in range(radius):
             results.append((x, y))
             x += dx
@@ -142,16 +171,18 @@ while running:
             
             if event.y > 0:
                 # Zoom in
-                gameScale *= 1.15
-                if gameScale > 15:
-                    gameScale = 15
+                gameScale *= zoomFactor
+                if gameScale > maxZoom:
+                    gameScale = maxZoom
             else:
                 # Zoom out
-                gameScale /= 1.15
-                if gameScale < 0.2:
-                    gameScale = 0.2
+                gameScale /= zoomFactor
+                if gameScale < minZoom:
+                    gameScale = minZoom
             
             gamePos = mousePos - worldPos * gameScale
+
+            numberSize = pygame.font.Font('assets/fonts/MinionPro-BoldCn.otf', int(textSize*gameScale))
 
         elif event.type == pygame.MOUSEMOTION:
             if dragging:
@@ -173,35 +204,47 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_r:
                 tileList = newTiles(numberOfRings)
+            if event.key == pygame.K_F11:
+                if fullscreen:
+                    screen = pygame.display.set_mode((1280, 720))
+                    fullscreen = False
+                else:
+                    screen = pygame.display.set_mode((screenWidth, screenHeight), pygame.FULLSCREEN)
+                    fullscreen = True
 
 
     
     # fill the screen with a color to wipe away anything from last frame
-    screen.fill((42, 126, 235))
+    screen.fill(sea)
 
     # Calculate screen bounds in world coordinates
-    screen_width, screen_height = screen.get_size()
-    shapeSize = gameSize * gameScale
+    gameWidth, gameHeight = screen.get_size()
+    shapeSize = hexSize * gameScale
     buffer = shapeSize  # Extra margin to prevent popping
     
     # Convert screen corners to world coordinates
     min_x = -gamePos.x - buffer
-    max_x = -gamePos.x + screen_width + buffer
+    max_x = -gamePos.x + gameWidth + buffer
     min_y = -gamePos.y - buffer  
-    max_y = -gamePos.y + screen_height + buffer
+    max_y = -gamePos.y + gameHeight + buffer
 
     for i in tileList:
         coord = i[0]
         # Calculate hex position in world coordinates
-        hex_x = coord[0] * shapeSize * 3/2
-        hex_y = coord[1] * shapeSize * 3**(1/2)/2
+        hex_x = coord[0] * shapeSize * hexWidthRatio
+        hex_y = coord[1] * shapeSize * hexHeightRatio
         
         # Check if hex is within screen bounds
         if (min_x <= hex_x <= max_x and min_y <= hex_y <= max_y):
             drawHexagon(i[0], i[1])
+            if i[2] is not None:
+                drawNumberToken(i[0], i[2])
     
-    hex = hexRound(pixelToFractionalHex(pygame.mouse.get_pos(), 40 * gameScale))
-    drawHexagon(hex, (255, 255, 255), 85)
+    hex = hexRound(pixelToFractionalHex(pygame.mouse.get_pos(), hexSize * gameScale))
+    drawHexagon(hex, selectorColor, selectorAlpha)
+
+    #text_surface = my_font.render('CATAN 0123456789', True, (255, 255, 255))
+    #screen.blit(text_surface, (50, 50))
 
     keys = pygame.key.get_pressed()
     if keys[pygame.K_ESCAPE]:
@@ -215,15 +258,15 @@ while running:
     if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
         gamePos.x -= speed * dt
     if keys[pygame.K_RSHIFT] or keys[pygame.K_LSHIFT]:
-        speed = 900
+        speed = panSpeed * 2
     else:
-        speed = 450
+        speed = panSpeed
     # flip() the display to put your work on screen
     pygame.display.flip()
 
-    # limits FPS to 60
+    # limits FPS to the limit (default 60)
     # dt is delta time in seconds since last frame, used for framerate-
     # independent physics.
-    dt = clock.tick(60) / 1000
+    dt = clock.tick(fpsLimit) / 1000
 
 pygame.quit()
