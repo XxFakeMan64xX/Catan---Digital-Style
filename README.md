@@ -15,6 +15,7 @@ A Python-based hexagonal grid visualization inspired by the board game Catan. Bu
 - **Mouse hover highlighting** shows the hex under the cursor
 - **Fullscreen toggle** with F11
 - **Map regeneration** with R key
+- **Pause system** with ESC (includes quit button)
 - **View culling** for performance (only draws visible hexes)
 
 ## Requirements
@@ -53,15 +54,15 @@ python game.py
 | Left-click drag | Pan camera |
 | R | Regenerate random map |
 | F11 | Toggle fullscreen |
-| Escape | Quit |
+| Escape | Toggle pause / Quit from pause menu |
 
 ## Project Structure
 
 - `game.py` - Main game loop and event handling
-- `config.py` - Configuration constants (colors, zoom settings, hex geometry)
+- `config.py` - Configuration constants (colors, zoom settings, hex geometry, UI settings)
 - `hex_grid.py` - Hex grid generation algorithms (ring-based, terrain/number assignment)
 - `coordinates.py` - Hex coordinate system conversions (pixel ↔ hex, rounding)
-- `drawing.py` - Rendering functions (hexagons, number tokens, alpha blending)
+- `ui.py` - UI components (uiRect class for scalable UI elements, hex class for tile rendering)
 - `assets/fonts/` - Font files for number tokens
 
 ## Technical Details

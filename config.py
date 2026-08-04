@@ -16,10 +16,13 @@ panSpeed = 450                                 # camera pan speed (units/sec)
 
 # --- App / performance settings ---
 fpsLimit = 60                                  # maximum frames per second
+dragThreshold = 12                             # minimum drag distance before registering as a drag (pixels)
 
-# --- UI colors ---
+# --- UI ---
 selectorColor, selectorAlpha = (255, 255, 255), 85  # tile selection highlight (color, transparency)
 numberTileColor = (212, 205, 142)              # background color for number tokens
+uiScale = 1.0                                  # UI scale factor
+pauseAlpha = 128                               # transparency for pause overlay (out of 255)
 
 # --- Resource/tile colors ---
 desert = (181, 174, 112)
@@ -30,7 +33,9 @@ wood = (8, 100, 23)
 brick = (255, 106, 42)
 goldMine = (180, 144, 14)
 sea = (17, 99, 176)
+deepSea = (12, 70, 125)
 colorList = [sheep, ore, wheat, wood, brick, goldMine]  # resource tiles (excludes desert and sea)
+noNumberTiles = [desert, sea, deepSea]         # tiles that don't have numbers
 
 # --- Number tokens / text ---
 textSize = 20                                  # base font size for number tokens

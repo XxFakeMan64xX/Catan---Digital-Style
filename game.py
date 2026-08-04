@@ -1,12 +1,13 @@
 import pygame
 from hex_grid import newTiles
 from config import (
-    numberOfRings, sea, hexSize, gameScale, hexWidthRatio, hexHeightRatio,
+    numberOfRings, hexSize, gameScale, hexWidthRatio, hexHeightRatio,
     selectorColor, selectorAlpha, panSpeed, fpsLimit, zoomFactor,
-    maxZoom, minZoom, textSize, numberSize
+    maxZoom, minZoom, textSize, numberSize, deepSea, dragThreshold,
+    pauseAlpha
 )
-from drawing import drawHexagon, drawNumberToken
 from coordinates import hexRound, pixelToFractionalHex
+from ui import uiRect, hex
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -20,11 +21,13 @@ clock = pygame.time.Clock()
 # gamePos is the on-screen pixel position that corresponds to world (0, 0).
 # Panning/zooming just moves this point and changes gameScale.
 gamePos = pygame.Vector2(screen.get_width() / 2, screen.get_height() / 2)
+mouse_down_pos = None
 
 # --- State flags ---
 running = True
-dragging = False
+paused = False
 fullscreen = True
+dragging = False
 dt = 0            # seconds elapsed since last frame, used to make movement frame-rate independent
 speed = panSpeed   # current pan speed (doubles when shift is held)
 
@@ -41,69 +44,92 @@ while running:
     # -----------------------------------------------------------------
     for event in pygame.event.get():
 
+        # When the game is either paused or running
         if event.type == pygame.QUIT:
             running = False
 
-        elif event.type == pygame.MOUSEWHEEL:
-            # Zoom in/out, keeping the point under the mouse cursor fixed in place.
-            mousePos = pygame.Vector2(pygame.mouse.get_pos())
+        # When the game is running (not paused)
+        if not paused:
+            if event.type == pygame.MOUSEWHEEL:
+                # Zoom in/out, keeping the point under the mouse cursor fixed in place.
+                mousePos = pygame.Vector2(pygame.mouse.get_pos())
 
-            # Where in "world space" the mouse currently points, before the zoom changes.
-            worldPos = (mousePos - gamePos) / gameScale
+                # Where in "world space" the mouse currently points, before the zoom changes.
+                worldPos = (mousePos - gamePos) / gameScale
 
-            if event.y > 0:
-                gameScale *= zoomFactor
-                if gameScale > maxZoom:
-                    gameScale = maxZoom
-            else:
-                gameScale /= zoomFactor
-                if gameScale < minZoom:
-                    gameScale = minZoom
-
-            # Re-anchor gamePos so the same world point stays under the mouse after zooming.
-            gamePos = mousePos - worldPos * gameScale
-
-            # Number tokens are drawn from a font, so their size must be regenerated
-            # whenever zoom level changes.
-            numberSize = pygame.font.Font('assets/fonts/MinionPro-BoldCn.otf', int(textSize * gameScale))
-
-        elif event.type == pygame.MOUSEMOTION:
-            if dragging:
-                mouse_x, mouse_y = event.pos
-                gamePos.x = mouse_x + offset_x
-                gamePos.y = mouse_y + offset_y
-
-        elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 1:
-                # Start a drag: remember the offset between the mouse and gamePos
-                # so we can keep that offset constant while dragging.
-                mouse_x, mouse_y = event.pos
-                dragging = True
-                offset_x = gamePos.x - mouse_x
-                offset_y = gamePos.y - mouse_y
-
-        elif event.type == pygame.MOUSEBUTTONUP:
-            if event.button == 1:
-                dragging = False
-
-        elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_r:
-                # Regenerate a fresh random map
-                tileList = newTiles(numberOfRings)
-
-            if event.key == pygame.K_F11:
-                # Toggle fullscreen <-> windowed
-                if fullscreen:
-                    screen = pygame.display.set_mode((1280, 720))
-                    fullscreen = False
+                if event.y > 0:
+                    gameScale *= zoomFactor
+                    if gameScale > maxZoom:
+                        gameScale = maxZoom
                 else:
-                    screen = pygame.display.set_mode((screenWidth, screenHeight), pygame.FULLSCREEN)
-                    fullscreen = True
+                    gameScale /= zoomFactor
+                    if gameScale < minZoom:
+                        gameScale = minZoom
+
+                # Re-anchor gamePos so the same world point stays under the mouse after zooming.
+                gamePos = mousePos - worldPos * gameScale
+
+                # Number tokens are drawn from a font, so their size must be regenerated
+                # whenever zoom level changes.
+                numberSize = pygame.font.Font('assets/fonts/MinionPro-BoldCn.otf', int(textSize * gameScale))
+
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    # Start a drag: remember the offset between the mouse and gamePos
+                    mouse_down_pos = event.pos
+                    
+            elif event.type == pygame.MOUSEMOTION:
+                if mouse_down_pos is not None and not dragging:
+                    mouse_x, mouse_y = event.pos
+                    down_x, down_y = mouse_down_pos
+                    moved = abs(mouse_x - down_x) + abs(mouse_y - down_y)
+                    if moved >= dragThreshold:
+                        dragging = True
+                        offset_x = gamePos.x - down_x
+                        offset_y = gamePos.y - down_y
+                if dragging:
+                    mouse_x, mouse_y = event.pos
+                    gamePos.x = mouse_x + offset_x
+                    gamePos.y = mouse_y + offset_y
+
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    dragging = False
+                    mouse_down_pos = None
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    # Regenerate a fresh random map
+                    tileList = newTiles(numberOfRings)
+                    
+                if event.key == pygame.K_ESCAPE:
+                    # Toggle pause
+                    paused = not paused
+
+                if event.key == pygame.K_F11:
+                    # Toggle fullscreen <-> windowed
+                    if fullscreen:
+                        screen = pygame.display.set_mode((1280, 720))
+                        fullscreen = False
+                    else:
+                        screen = pygame.display.set_mode((screenWidth, screenHeight), pygame.FULLSCREEN)
+                        fullscreen = True
+
+        # When the game is paused
+        else:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    # Toggle pause
+                    paused = not paused
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:
+                    # if the quit button is clicked, the game is NOT running (quit)
+                    running = not quitButton.isClicked(pygame.mouse.get_pos())
 
     # -----------------------------------------------------------------
     # Drawing
     # -----------------------------------------------------------------
-    screen.fill(sea)
+    screen.fill(deepSea)
 
     gameWidth, gameHeight = screen.get_size()
     shapeSize = hexSize * gameScale
@@ -115,42 +141,53 @@ while running:
     min_y = -gamePos.y - buffer
     max_y = -gamePos.y + gameHeight + buffer
 
-    for coord, terrain, number in tileList:
-        hex_x = coord[0] * shapeSize * hexWidthRatio
-        hex_y = coord[1] * shapeSize * hexHeightRatio
+    for tile in tileList:
+        tile_x = tile.x * shapeSize * hexWidthRatio
+        tile_y = tile.y * shapeSize * hexHeightRatio
 
         # Only draw hexes that are within (or near) the visible screen area.
-        if min_x <= hex_x <= max_x and min_y <= hex_y <= max_y:
-            drawHexagon(screen, gamePos, gameScale, coord, terrain)
-            if number is not None:
-                drawNumberToken(screen, gamePos, gameScale, numberSize, coord, number)
+        if min_x <= tile_x <= max_x and min_y <= tile_y <= max_y:
+            tile.draw(screen, gamePos, gameScale, numberSize)
 
-    # Highlight the hex currently under the mouse cursor.
-    hoveredHex = hexRound(pixelToFractionalHex(gamePos, pygame.mouse.get_pos(), hexSize * gameScale))
-    drawHexagon(screen, gamePos, gameScale, hoveredHex, selectorColor, selectorAlpha)
+    # uiBase = uiRect(0, screen.get_height()*5/6, screen.get_width(), screen.get_height()/6, (255, 255, 255), scalable=(True, "bottom"))
+    # uiBase.draw(screen)
+    if not paused:
+        # Highlight the hex currently under the mouse cursor.
+        hoveredHexCoords = hexRound(pixelToFractionalHex(gamePos, pygame.mouse.get_pos(), hexSize * gameScale))
+        hoveredHex = hex(hoveredHexCoords[0], hoveredHexCoords[1], selectorColor)
+        hoveredHex.draw(screen, gamePos, gameScale, alpha=selectorAlpha)
+    else:
+        # Draw pause overlay
+        pauseRect = uiRect(0, 0, screen.get_width(), screen.get_height(), (0, 0, 0), scalable=(False, None), alpha=pauseAlpha)
+        pauseRect.draw(screen)
+
+        # Draw quit button and text
+        quitButton = uiRect(screen.get_width()/2 - screen.get_width()/(2.5*2), screen.get_height()/2 - screen.get_height()/(10*2), screen.get_width()/2.5, screen.get_height()/10, (255, 255, 255), "Quit Game", screen.get_width()/35, (True, "center"), borderRadius=10)
+        quitButton.draw(screen)
+
+        
+
 
     # -----------------------------------------------------------------
     # Continuous input (keys held down every frame)
     # -----------------------------------------------------------------
-    keys = pygame.key.get_pressed()
+    if not paused:
+        keys = pygame.key.get_pressed()
 
-    if keys[pygame.K_ESCAPE]:
-        running = False
+        # Hold shift to pan faster. Must be computed *before* using `speed` below.
+        if keys[pygame.K_RSHIFT] or keys[pygame.K_LSHIFT]:
+            speed = panSpeed * 2
+        else:
+            speed = panSpeed
 
-    # Hold shift to pan faster. Must be computed *before* using `speed` below.
-    if keys[pygame.K_RSHIFT] or keys[pygame.K_LSHIFT]:
-        speed = panSpeed * 2
-    else:
-        speed = panSpeed
-
-    if keys[pygame.K_w] or keys[pygame.K_UP]:
-        gamePos.y += speed * dt
-    if keys[pygame.K_s] or keys[pygame.K_DOWN]:
-        gamePos.y -= speed * dt
-    if keys[pygame.K_a] or keys[pygame.K_LEFT]:
-        gamePos.x += speed * dt
-    if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
-        gamePos.x -= speed * dt
+        if keys[pygame.K_w] or keys[pygame.K_UP]:
+            gamePos.y += speed * dt
+        if keys[pygame.K_s] or keys[pygame.K_DOWN]:
+            gamePos.y -= speed * dt
+        if keys[pygame.K_a] or keys[pygame.K_LEFT]:
+            gamePos.x += speed * dt
+        if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
+            gamePos.x -= speed * dt
 
     # -----------------------------------------------------------------
     # Frame finalization
