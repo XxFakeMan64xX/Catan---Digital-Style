@@ -120,7 +120,8 @@ class hex:
             screen.blit(alphaSurface, (realX - shapeSize, realY - shapeSize) + gamePos)
         if self.number is not None:
             # Draw the token's circular background, centered on the tile.
-            pygame.draw.circle(screen, numberTileColor, (realX, realY) + gamePos, shapeSize/3)
+            if self.number != "?":
+                pygame.draw.circle(screen, numberTileColor, (realX, realY) + gamePos, shapeSize/3)
 
             # Color the number text based on how "hot" the roll is: 6 and 8
             # are the most probable non-7 rolls on two dice, so they're
@@ -130,7 +131,7 @@ class hex:
             # falls back to blue.
             if self.number in [6, 8]:
                 tokenNumber = numberSize.render(str(self.number), True, "red")
-            elif 2 <= self.number <= 12 and self.number != 7:
+            elif self.number == "?" or (2 <= self.number <= 12 and self.number != 7):
                 tokenNumber = numberSize.render(str(self.number), True, "black")
             else:
                 tokenNumber = numberSize.render(str(self.number), True, "blue")

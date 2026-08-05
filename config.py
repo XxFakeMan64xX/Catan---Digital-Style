@@ -34,10 +34,11 @@ brick = (255, 106, 42)
 goldMine = (180, 144, 14)
 sea = (17, 99, 176)
 deepSea = (12, 70, 125)
-colorList = [sheep, ore, wheat, wood, brick, goldMine]  # resource tiles (excludes desert and sea)
+fog = (222, 222, 222)
+colorList = [sheep, ore, wheat, wood, brick, desert] #, goldMine]  # resource tiles (excludes desert and sea)
 noNumberTiles = [desert, sea, deepSea]         # tiles that don't have numbers
 
 # --- Number tokens / text ---
 textSize = 20                                  # base font size for number tokens
 numberList = [2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12]  # standard Catan number token distribution
-numberSize = pygame.font.Font('assets/fonts/MinionPro-BoldCn.otf', int(textSize * gameScale))  # font object, scaled to current zoom
+numberSize = pygame.font.Font('assets/fonts/MinionPro-BoldCn.otf', round(textSize * gameScale))  # font object, scaled to current zoom

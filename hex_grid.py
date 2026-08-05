@@ -1,5 +1,5 @@
 import random
-from config import desert, colorList, numberList, noNumberTiles
+from config import desert, colorList, numberList, noNumberTiles, fog
 from ui import hex
 
 def hexRing(center, radius):
@@ -116,12 +116,8 @@ def newTiles(rings):
     # Walk every hex position in the grid (center + all requested rings).
     for tile in hexGrid((0, 0), rings):
         # Center tile is always desert; every other tile gets a random resource color. 
-        color = desert if tile == (0, 0) else random.choice(colorList)
+        color = random.choice(colorList) #if tile != (0, 0) else desert
         # Desert, sea, and deep sea tiles don't get a number token.
         # (Could have more tiles if noNumberTiles is edited.)
-        if color not in noNumberTiles:
-            tileList.append(hex(tile[0], tile[1], color, random.choice(numberList)))
-        else:
-            tileList.append(hex(tile[0], tile[1], color))
-
+        tileList.append(hex(tile[0], tile[1], color, "?" if color == fog else random.choice(numberList) if color not in noNumberTiles else None))
     return tileList

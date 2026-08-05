@@ -4,6 +4,7 @@ A Python-based hexagonal grid visualization inspired by the board game Catan. Bu
 
 ## Features
 
+- **Screen management system** with main menu and game screens
 - **Procedural hex grid generation** using ring-based spiral algorithm
 - **Random terrain assignment** with proper Catan resource distribution (sheep, ore, wheat, wood, brick, gold mine, desert)
 - **Number token placement** with standard Catan dice roll distribution
@@ -15,7 +16,7 @@ A Python-based hexagonal grid visualization inspired by the board game Catan. Bu
 - **Mouse hover highlighting** shows the hex under the cursor
 - **Fullscreen toggle** with F11
 - **Map regeneration** with R key
-- **Pause system** with ESC (includes quit button)
+- **Pause system** with ESC (includes quit button and main menu navigation)
 - **View culling** for performance (only draws visible hexes)
 
 ## Requirements
@@ -58,7 +59,11 @@ python game.py
 
 ## Project Structure
 
-- `game.py` - Main game loop and event handling
+- `game.py` - Main entry point with screen manager and game loop
+- `screens/` - Screen management system
+  - `__init__.py` - Base Screen class with common UI setup
+  - `mainMenu.py` - Main menu screen with navigation buttons
+  - `GameScreen.py` - Game screen with hex grid, camera controls, and pause system
 - `config.py` - Configuration constants (colors, zoom settings, hex geometry, UI settings)
 - `hex_grid.py` - Hex grid generation algorithms (ring-based, terrain/number assignment)
 - `coordinates.py` - Hex coordinate system conversions (pixel ↔ hex, rounding)
