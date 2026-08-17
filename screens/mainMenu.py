@@ -34,10 +34,20 @@ class MainMenu(Screen):
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
                     mouse_pos = pygame.mouse.get_pos()
-                    if self.quitButton.isClicked(mouse_pos):
-                        return "quit"
+                    if self.newButton.isClicked(mouse_pos):
+                        return "new"
                     if self.continueButton.isClicked(mouse_pos):
                         return "continue"
+                    if self.joinButton.isClicked(mouse_pos):
+                        return "join"
+                    if self.settingsButton.isClicked(mouse_pos):
+                        return "settings"
+                    if self.statisticsButton.isClicked(mouse_pos):
+                        return "statistics"
+                    if self.quitButton.isClicked(mouse_pos):
+                        return "quit"
+                    if self.tutorialButton.isClicked(mouse_pos):
+                        return "tutorial"
 
     def Draw(self, screen):
         screen.fill(self.background)

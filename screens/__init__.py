@@ -1,5 +1,4 @@
 from config import deepSea
-import pygame
 
 class Screen:
     def __init__(self, screenManager, screen):

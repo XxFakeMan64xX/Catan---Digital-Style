@@ -91,3 +91,17 @@ def hexRound(coords):
     # project's doubled coordinate system, matching the format used by
     # hexRing/hexGrid/drawHexagon elsewhere.
     return q, 2 * r + q
+
+def getSettlementPositions(tileList):
+    positions = set()
+    for tile in tileList:
+        for dx, dy in [(1/3, -1), (-1/3, -1), (-2/3, 0), (2/3, 0), (1/3, 1), (-1/3, 1)]:
+            positions.add((tile.x + dx, tile.y + dy))
+    return list(positions)
+
+def getRoadPositions(tileList):
+    positions = set()
+    for tile in tileList:
+        for dx, dy, angle in [(0, -1, 0), (0.5, -0.5, 60), (0.5, 0.5, 120), (0, 1, 180), (-0.5, 0.5, 240), (-0.5, -0.5, 300)]:
+            positions.add((tile.x + dx, tile.y + dy, angle))
+    return list(positions)

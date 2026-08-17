@@ -1,4 +1,4 @@
-import random
+import random, math
 from config import desert, colorList, numberList, noNumberTiles, fog
 from ui import hex
 

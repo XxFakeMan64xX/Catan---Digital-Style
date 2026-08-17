@@ -6,15 +6,17 @@ from config import (
 from screens import Screen
 from ui import uiRect, hex
 from hex_grid import newTiles
-from coordinates import hexRound, pixelToFractionalHex
-import pygame
+from coordinates import hexRound, pixelToFractionalHex, getSettlementPositions, getRoadPositions
+import pygame, json, math
 
 class GameScreen(Screen):
-    def __init__(self, screenManager, screen): # Assets, fonts, static button positions, things that never change
+    def __init__(self, screenManager, screen, tileList=None): # Assets, fonts, static button positions, things that never change
         super().__init__(screenManager, screen)
         # Only setup things that don't depend on screen size here
         # Generate the initial hex map (a spiral/ring-based board of `numberOfRings` rings)
-        self.tileList = newTiles(numberOfRings)
+        self.tileList = tileList if tileList is not None else newTiles(numberOfRings)
+        self.settlementPositions = getSettlementPositions(self.tileList)
+        self.roadPositions = getRoadPositions(self.tileList)
 
     def OnEnter(self): # Reset game state, start animations, recalculate responsive positions
         super().OnEnter()
@@ -37,6 +39,9 @@ class GameScreen(Screen):
     def Update(self, dt):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                save_data = [(t.x, t.y, t.resource, t.number) for t in self.tileList]
+                with open("save.json", "w") as f:
+                    json.dump(save_data, f)
                 return "quit"
             
             elif event.type == pygame.KEYDOWN:
@@ -79,8 +84,6 @@ class GameScreen(Screen):
                         self.dragging = True
                         
                 elif event.type == pygame.MOUSEMOTION:
-                    if self.mouse_down_pos is not None and not self.dragging:
-                        mouse_x, mouse_y = event.pos
                     if self.dragging:
                         mouse_x, mouse_y = event.pos
                         self.gamePos.x = mouse_x + self.offset_x
@@ -90,11 +93,6 @@ class GameScreen(Screen):
                     if event.button == 1:
                         self.dragging = False
                         self.mouse_down_pos = None
-
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r:
-                        # Regenerate a fresh random map
-                        self.tileList = newTiles(numberOfRings)
             else:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:  # Left click
@@ -102,8 +100,14 @@ class GameScreen(Screen):
                         if self.continueButton.isClicked(mouse_pos):
                             self.paused = False
                         elif self.mainMenuButton.isClicked(mouse_pos):
+                            save_data = [(t.x, t.y, t.resource, t.number) for t in self.tileList]
+                            with open("save.json", "w") as f:
+                                json.dump(save_data, f)
                             return "main_menu"
                         elif self.quitButton.isClicked(mouse_pos):
+                            save_data = [(t.x, t.y, t.resource, t.number) for t in self.tileList]
+                            with open("save.json", "w") as f:
+                                json.dump(save_data, f)
                             return "quit"
         
         if not self.paused:
@@ -147,10 +151,80 @@ class GameScreen(Screen):
         # uiBase = uiRect(0, screen.get_height()*5/6, screen.get_width(), screen.get_height()/6, (255, 255, 255), scalable=(True, "bottom"))
         # uiBase.draw(screen)
         if not self.paused:
+            mousePos = pygame.mouse.get_pos()
+            mouseWorldPos = (pygame.Vector2(mousePos) - self.gamePos) / self.gameScale
+            closestCorner = None
+            closestRoad = None
+            minDist = float('inf')
+
+            for pos in self.settlementPositions:
+                cornerWorld = pygame.Vector2(
+                    pos[0] * hexSize * hexWidthRatio,
+                    pos[1] * hexSize * hexHeightRatio
+                )
+                screenPos = cornerWorld * self.gameScale + self.gamePos
+                dist = mouseWorldPos.distance_to(cornerWorld)
+                if dist < minDist and dist < hexSize * 0.2:
+                    minDist = dist
+                    closestCorner = cornerWorld
+            if closestCorner:
+                screenPos = closestCorner * self.gameScale + self.gamePos
+                squareSize = 12 * self.gameScale
+                rect = pygame.Rect(
+                    screenPos.x - squareSize/2,
+                    screenPos.y - squareSize/2,
+                    squareSize,
+                    squareSize
+                )
+                pygame.draw.rect(screen, (17, 99, 176), rect)
+
+            for pos in self.roadPositions:
+                roadWorld = pygame.Vector2(
+                    pos[0] * hexSize * hexWidthRatio,
+                    pos[1] * hexSize * hexHeightRatio,
+                )
+                screenPos = roadWorld * self.gameScale + self.gamePos
+                dist = mouseWorldPos.distance_to(roadWorld)
+                if dist < minDist and dist < hexSize * 0.2:
+                    minDist = dist
+                    closestRoad = pos
+            if closestRoad:
+                roadWorld = pygame.Vector2(
+                    closestRoad[0] * hexSize * hexWidthRatio,
+                    closestRoad[1] * hexSize * hexHeightRatio
+                )
+                screenPos = roadWorld * self.gameScale + self.gamePos
+                roadLength = 20 * self.gameScale
+                roadWidth = 6 * self.gameScale
+
+                angleRad = math.radians(closestRoad[2])  # closestRoad now includes angle
+                
+                # Direction vector along the road
+                dirX = math.cos(angleRad)
+                dirY = math.sin(angleRad)
+                
+                # Perpendicular vector (for width)
+                perpX = -dirY
+                perpY = dirX
+                
+                # Calculate 4 corners
+                corners = [
+                    (screenPos.x - dirX * roadLength/2 + perpX * roadWidth/2,
+                    screenPos.y - dirY * roadLength/2 + perpY * roadWidth/2),
+                    (screenPos.x + dirX * roadLength/2 + perpX * roadWidth/2,
+                    screenPos.y + dirY * roadLength/2 + perpY * roadWidth/2),
+                    (screenPos.x + dirX * roadLength/2 - perpX * roadWidth/2,
+                    screenPos.y + dirY * roadLength/2 - perpY * roadWidth/2),
+                    (screenPos.x - dirX * roadLength/2 - perpX * roadWidth/2,
+                    screenPos.y - dirY * roadLength/2 - perpY * roadWidth/2)
+                ]
+
+                pygame.draw.polygon(screen, (17, 99, 176), corners)
+            
             # Highlight the hex currently under the mouse cursor.
-            hoveredHexCoords = hexRound(pixelToFractionalHex(self.gamePos, pygame.mouse.get_pos(), hexSize * self.gameScale))
-            hoveredHex = hex(hoveredHexCoords[0], hoveredHexCoords[1], selectorColor)
-            hoveredHex.draw(screen, self.gamePos, self.gameScale, alpha=selectorAlpha)
+            # hoveredHexCoords = hexRound(pixelToFractionalHex(self.gamePos, mousePos, hexSize * self.gameScale))
+            # hoveredHex = hex(hoveredHexCoords[0], hoveredHexCoords[1], selectorColor)
+            # hoveredHex.draw(screen, self.gamePos, self.gameScale, alpha=selectorAlpha)
         else:
             # Draw pause overlay
             pauseRect = uiRect(0, 0, screen.get_width(), screen.get_height(), (0, 0, 0), scalable=(False, None), alpha=pauseAlpha)

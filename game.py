@@ -1,4 +1,5 @@
-import pygame
+import pygame, json
+from ui import hex
 from config import fpsLimit
 from screens.mainMenu import MainMenu
 from screens.GameScreen import GameScreen
@@ -24,9 +25,18 @@ class ScreenManager:
         if screen_name == "main_menu":
             self.current_screen = MainMenu(self, screen)
             self.current_screen.OnEnter()
-        elif screen_name == "continue":
+        elif screen_name == "new":
             self.current_screen = GameScreen(self, screen)
             self.current_screen.OnEnter()
+        elif screen_name == "continue":
+            try:
+                with open("save.json", "r") as f:
+                    savedData = json.load(f)
+                tileList = [hex(*t) for t in savedData]
+                self.current_screen = GameScreen(self, screen, tileList)
+                self.current_screen.OnEnter()
+            except FileNotFoundError:
+                pass
         elif screen_name == "quit":
             return False  # Signal to quit
         return True
